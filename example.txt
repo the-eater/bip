@@ -1,0 +1,4 @@
+interfaces="dummy0"
+
+dummy0_addresses="10.45.0.23/16";
+dummy0_routes=("prefix=default; via=10.45.0.1")

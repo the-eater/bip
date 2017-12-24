@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+main () {
+    local config="/etc/bip";
+    local noop="no";
+    local interfaces="";
+
+    while getopts ":c:" o; do
+        case "${o}" in
+            c)
+                config="${OPTARG}";
+        esac
+    done;
+
+    . "${config}";
+
+    if [ -z "${interfaces}" ]; then
+        echo "No interfaces defined to manage";
+        return 1;
+    fi
+
+    for interface in "${interfaces}"; do
+        interface_manage "${interface}" "$(eval "echo \"\${${interface}_addresses}\"")" "$(eval "echo \"\${${interface}_routes}\"")";
+    done
+}
+
+interface_manage() {
+    local interface="$1";
+    local addresses="$2";
+    local routes="$3";
+
+
+    if ip link | grep -q 'DOWN'; then
+      ip link set "${interface}" up;
+    fi
+
+    for address in "${addresses}"; do
+        if ! ip address show dev "${interface}" | grep -q "${address}"; then
+            ip address add "${address}" dev "${interface}"
+        fi
+    done;
+
+    for route in "${routes}"; do
+        local dev="${interface}"
+        local prefix=""
+        local via=""
+        local src=""
+        eval "${route}"
+
+        route_sel=""
+
+        [ ! -z "$prefix" ] && route_sel+="${prefix} ";
+        [ ! -z "$dev" ] && route_sel+="dev ${dev} ";
+        [ ! -z "$via" ] && route_sel+="via ${via} ";
+        [ ! -z "$src" ] && route_sel+="src ${src} ";
+
+        result="$(ip route show ${route_sel})";
+        if [ "$?" -gt 0 ] || [ -z "${result}" ]; then
+            ip route add ${route_sel};
+        fi
+    done
+}
+
+main "$@";
